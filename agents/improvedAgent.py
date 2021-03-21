@@ -3,57 +3,36 @@ from .MineVisualization import game
 import random 
 import copy
 
-class Sentence():
-    """
-    Logical statement about a Minesweeper game
-    A sentence consists of a set of board cells,
-    and a count of the number of those cells which are mines.
-    """
+class ConstraintEquation():
 
-    def __init__(self, cells, count):
-        self.cells = set(cells)
-        self.count = count
+    def __init__(self, neighbors, clue):
+        self.neighbors = set(neighbors)
+        self.clue = clue
 
-    def __eq__(self, other):
-        return self.cells == other.cells and self.count == other.count
-
-    def __str__(self):
-        return f"{self.cells} = {self.count}"
-
-    def known_mines(self):
-        """
-        Returns the set of all cells in self.cells known to be mines.
-        """
-        if self.count == len(self.cells):
-            return self.cells
-
-    def known_safes(self):
-        """
-        Returns the set of all cells in self.cells known to be safe.
-        """
-        if self.count == 0:
-            return self.cells
-
-    def mark_mine(self, cell):
-        """
-        Updates internal knowledge representation given the fact that
-        a cell is known to be a mine.
-        """
-        if cell in self.cells:
-            self.cells.remove(cell)
-            self.count -= 1
+    #mark a cell as a mine by removing it from set
+    def markAsMine(self, cell):
+        if cell in self.neighbors:
+            self.neighbors.remove(cell)
+            self.clue -= 1
         else:
             pass
 
-    def mark_safe(self, cell):
-        """
-        Updates internal knowledge representation given the fact that
-        a cell is known to be safe.
-        """
-        if cell in self.cells:
-            self.cells.remove(cell)
+    #mark a cell as a safe by removing it from set
+    def markAsSafe(self, cell):
+        if cell in self.neighbors:
+            self.neighbors.remove(cell)
         else:
             pass
+
+    #returns known mines in the neighbors set
+    def getIdentifiedMines(self):
+        if self.clue == len(self.neighbors):
+            return self.neighbors
+
+    #returns known safe neighbors in the neighbors set
+    def getIdentifiedSafes(self):
+        if self.clue == 0:
+            return self.neighbors
 
 
 class ImprovedAgent():
@@ -61,35 +40,25 @@ class ImprovedAgent():
     def __init__(self, env):
 
         self.env = env
+        self.gridSize = env.gridSize
 
-        # Set initial height and width
-        self.height = env.gridSize
-        self.width = env.gridSize
+        self.movesTaken = set()
 
+        self.mines = set()
+        self.safes = set()
+        
+        self.movesVisualization = []
         self.movesAvaliable = []
         self.populateMovesAvaliable()
 
-        self.moves_made = set()
-
-       # Keep track of cells known to be safe or mines
-        self.mines = set()
-        self.safes = set()
-
-        
-        self.movesVisualization = []
-
-
-        # List of sentences about the game known to be true
-        self.knowledge = []
-
+        # List of constraint equations
+        self.knowledgeBase = []
         self.minesHit = 0
-
 
     def populateMovesAvaliable(self):
         for x in range(self.env.gridSize):
                 for y in range(self.env.gridSize):
                     self.movesAvaliable.append((x,y))
-
 
     def execute(self):
 
@@ -97,220 +66,169 @@ class ImprovedAgent():
 
         while(gameRunning):
 
-            move = self.make_safe_move()
+            move = self.openSafeCell()
             if move is None:
-                move = self.make_random_move()
+                move = self.openRandomCell()
                 if move is None:
+
                         flags = self.mines.copy()
                         gameRunning = False
+
                         print(self.env.clues)
 
                         print("Mines Hit: " + str(self.minesHit))
-                        print("Moves Made: " + str(self.moves_made))
-                        print("Length of Moves Made: " + str(len(self.moves_made)))
+                        print("Moves Made: " + str(self.movesTaken))
+                        print("Length of Moves Made: " + str(len(self.movesTaken)))
+                        print("Mines Identified: " + str(len(self.mines)))
 
-                        game(len(self.env.clues), self.env.clues,  self.env.clues, self.movesVisualization)
+                        #game(len(self.env.clues), self.env.clues,  self.env.clues, self.movesVisualization)
 
-                        print("No moves left to make.")
+                        print("No moves left")
 
-                        return
+                        return len(self.mines) - self.minesHit
                 else:
-                    print("No known safe moves, AI making random move.")
+                    print("No safe neighbors. Opening a random cell.")
             else:
-                print("AI making safe move.")
+                print("Opening a safe cell.")
 
             x = move[0]
             y = move[1]
 
             clue = self.env.open(move[0],move[1])
 
-            self.moves_made.add((x,y))
-
+            self.movesTaken.add((x,y))
 
             if(clue == -1):
                 self.minesHit += 1
-                self.mark_mine((x,y))
+                self.markAsMine((x,y))
 
             else:
-                self.add_knowledge(move, clue)
+                self.makeEquation(move, clue)
 
 
+    def openSafeCell(self):
+        for i in self.safes - self.movesTaken:
+            return i
+        return None
 
-        #game(len(self.env.clues), self.env.clues, self.clues, self.movesTaken)
+    def openRandomCell(self):
+        
+        for cell in self.mines:
+            if(cell in self.movesAvaliable):
+                self.movesAvaliable.remove(cell)
 
+        for cell in self.movesTaken:
+            if(cell in self.movesAvaliable):
+                self.movesAvaliable.remove(cell)
 
-    def mark_mine(self, cell):
-        """
-        Marks a cell as a mine, and updates all knowledge
-        to mark that cell as a mine as well.
-        """
+        if(len(self.movesAvaliable) == 0):
+            return None
+
+        else:
+            return self.movesAvaliable[random.randrange(len(self.movesAvaliable))]
+
+    def markAsMine(self, cell):
+        
+        if(cell in self.movesAvaliable):
+            self.movesAvaliable.remove(cell)
+
         self.mines.add(cell)
-        for sentence in self.knowledge:
-            sentence.mark_mine(cell)
+        for sentence in self.knowledgeBase:
+            sentence.markAsMine(cell)
 
-    def mark_safe(self, cell):
-        """
-        Marks a cell as safe, and updates all knowledge
-        to mark that cell as safe as well.
-        """
+    def markAsSafe(self, cell):
         self.safes.add(cell)
-        for sentence in self.knowledge:
-            sentence.mark_safe(cell)
+        for sentence in self.knowledgeBase:
+            sentence.markAsSafe(cell)
 
-    def add_knowledge(self, cell, count):
-        """
-        Called when the Minesweeper board tells us, for a given
-        safe cell, how many neighboring cells have mines in them.
-        This function should:
-            1) mark the cell as a move that has been made
-            2) mark the cell as safe
-            3) add a new sentence to the AI's knowledge base
-               based on the value of `cell` and `count`
-            4) mark any additional cells as safe or as mines
-               if it can be concluded based on the AI's knowledge base
-            5) add any new sentences to the AI's knowledge base
-               if they can be inferred from existing knowledge
-        """
+    #checks to see if position (i,j) is a valid position
+    def inGrid(self, i,j):
 
-        # mark the cell as one of the moves made in the game
-        #self.moves_made.add(cell)
+        maxGridPosition = self.env.gridSize - 1
+        if((i < 0) or (i > maxGridPosition) or (j < 0) or (j > maxGridPosition)):
+            return False
+        return True
 
-        # mark the cell as a safe cell, updating any sequences that contain the cell as well
-        self.mark_safe(cell)
+    def makeEquation(self, cell, clue):
+
+        self.markAsSafe(cell)
         self.movesVisualization.append(cell)
+        if(cell in self.movesAvaliable):
+            self.movesAvaliable.remove(cell)
 
-        # add new sentence to AI knowledge base based on value of cell and count
-        cells = set()
-        count_cpy = copy.deepcopy(count)
-        close_cells = self.return_close_cells(cell)     # returns neighbour cells
-        for cl in close_cells:
-            if cl in self.mines:
-                count_cpy -= 1
-            if cl not in self.mines | self.safes:
-                cells.add(cl)                           # only add cells that are of unknown state
+        neighbors = set()
+        clue = copy.deepcopy(clue)
+        neighborCells = self.getNeighborCells(cell) 
+        for neighbor in neighborCells:
+            if neighbor in self.mines:
+                clue -= 1
+            if neighbor not in self.mines | self.safes:
+                neighbors.add(neighbor)                           
 
-        new_sentence = Sentence(cells, count_cpy)           # prepare new sentence
+        newEquation = ConstraintEquation(neighbors, clue)
 
-        if len(new_sentence.cells) > 0:                 # add that sentence to knowledge only if it is not empty
-            self.knowledge.append(new_sentence)
-            # print(f"Adding new sentence: {new_sentence}")
+        if len(newEquation.neighbors) > 0:                 
+            self.knowledgeBase.append(newEquation)
 
-        # # print("Printing knowledge:")
-        # for sent in self.knowledge:
-        #     # print(sent)
+        self.updateKnowledgeBase()
+        self.makeInference()
 
-        # check sentences for new cells that could be marked as safe or as mine
-        self.check_knowledge()
-        # print(f"Safe cells: {self.safes - self.moves_made}")
-        # print(f"Mine cells: {self.mines}")
-        # print("------------")
+    def getNeighborCells(self, cell):
 
-        self.extra_inference()
+        neighborCells = set()
 
-    def return_close_cells(self, cell):
-        """
-        returns cell that are 1 cell away from cell passed in arg
-        """
-        # returns cells close to arg cell by 1 cell
-        close_cells = set()
-        for rows in range(self.height):
-            for columns in range(self.width):
-                if abs(cell[0] - rows) <= 1 and abs(cell[1] - columns) <= 1 and (rows, columns) != cell:
-                    close_cells.add((rows, columns))
-        return close_cells
+        for i in [-1, 0, 1]:
+            for j in [-1, 0, 1]:
 
-    def check_knowledge(self):
-        """
-        check knowledge for new safes and mines, updates knowledge if possible
-        """
-        # copies the knowledge to operate on copy
-        knowledge_copy = copy.deepcopy(self.knowledge)
-        # iterates through sentences
+                if(i == 0 and j == 0):
+                        continue
 
-        for sentence in knowledge_copy:
-            if len(sentence.cells) == 0:
-                try:
-                    self.knowledge.remove(sentence)
-                except ValueError:
-                    pass
-            # check for possible mines and safes
-            mines = sentence.known_mines()
-            safes = sentence.known_safes()
+                xPosition = cell[0] + i
+                yPosition = cell[1] + j
 
-            # update knowledge if mine or safe was found
+                if(self.inGrid(xPosition,yPosition)):
+                    neighborCells.add((xPosition, yPosition))
+
+        return neighborCells
+
+    def updateKnowledgeBase(self):
+
+        knowledgeBaseCopy = copy.deepcopy(self.knowledgeBase)
+
+        for equation in knowledgeBaseCopy:
+
+            if len(equation.neighbors) == 0:
+                if(equation in self.knowledgeBase):
+                    self.knowledgeBase.remove(equation)
+                
+            mines = equation.getIdentifiedMines()
             if mines:
                 for mine in mines:
-                    # print(f"Marking {mine} as mine")
-                    self.mark_mine(mine)
-                    self.check_knowledge()
+                    self.markAsMine(mine)
+                    self.updateKnowledgeBase()
+
+            safes = equation.getIdentifiedSafes()
             if safes:
                 for safe in safes:
-                    # print(f"Marking {safe} as safe")
-                    self.mark_safe(safe)
-                    self.check_knowledge()
+                    self.markAsSafe(safe)
+                    self.updateKnowledgeBase()
 
-    def extra_inference(self):
-        """
-        update knowledge based on inference
-        """
+    def makeInference(self):
+
         # iterate through pairs of sentences
-        for sentence1 in self.knowledge:
-            for sentence2 in self.knowledge:
+        for tempEquation1 in self.knowledgeBase:
+            for tempEquation2 in self.knowledgeBase:
                 # check if sentence 1 is subset of sentence 2
-                if sentence1.cells.issubset(sentence2.cells):
-                    new_cells = sentence2.cells - sentence1.cells
-                    new_count = sentence2.count - sentence1.count
-                    new_sentence = Sentence(new_cells, new_count)
-                    mines = new_sentence.known_mines()
-                    safes = new_sentence.known_safes()
+                if tempEquation1.neighbors.issubset(tempEquation2.neighbors):
+                    new_cells = tempEquation2.neighbors - tempEquation1.neighbors
+                    new_count = tempEquation2.clue - tempEquation1.clue
+                    newEquation = ConstraintEquation(new_cells, new_count)
+                    mines = newEquation.getIdentifiedMines()
+                    safes = newEquation.getIdentifiedSafes()
                     if mines:
                         for mine in mines:
-                            # print(f"Used inference to mark mine: {mine}")
-                            # print(f"FinalSen: {new_sentence}")
-                            # print(f"Sent1: {sent1copy}")
-                            # print(f"Sent2: {sent2copy}")
-                            self.mark_mine(mine)
+                            self.markAsMine(mine)
 
                     if safes:
                         for safe in safes:
-                            # print(f"Used inference to mark safe: {safe}")
-                            # print(f"FinalSen: {new_sentence}")
-                            # print(f"Sent1: {sent1copy}")
-                            # print(f"Sent2: {sent2copy}")
-                            self.mark_safe(safe)
-
-    def make_safe_move(self):
-        """
-        Returns a safe cell to choose on the Minesweeper board.
-        The move must be known to be safe, and not already a move
-        that has been made.
-        This function may use the knowledge in self.mines, self.safes
-        and self.moves_made, but should not modify any of those values.
-        """
-        for i in self.safes - self.moves_made:
-            # choose first safe cell that wasn't picked before
-            # print(f"Making {i} move")
-            return i
-        
-        return None
-
-    def make_random_move(self):
-        """
-        Returns a move to make on the Minesweeper board.
-        Should choose randomly among cells that:
-            1) have not already been chosen, and
-            2) are not known to be mines
-        """
-
-        maxmoves = self.width * self.height
-
-        while maxmoves > 0:
-            maxmoves -= 1
-
-            row = random.randrange(self.height)
-            column = random.randrange(self.width)
-
-            if (row, column) not in self.moves_made | self.mines:
-                return (row, column)
-
-        return None
+                            self.markAsSafe(safe)

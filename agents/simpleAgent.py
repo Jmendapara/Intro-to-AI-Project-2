@@ -25,7 +25,7 @@ class SimpleAgent():
         self.movesAvaliable = []
         self.movesTaken = []
 
-        
+
         self.populateMovesAvaliable()
 
     def populateMovesAvaliable(self):
@@ -66,10 +66,10 @@ class SimpleAgent():
         print('Mine Hits = ', str(self.minesHit))
 
         print(self.movesTaken)
+        game(len(self.env.clues), self.env.clues, self.clues, self.movesTaken)
 
         return totalFlagged
 
-        #game(len(self.env.clues), self.env.clues, self.clues, self.movesTaken)
 
     def openPosition(self, x, y):
 

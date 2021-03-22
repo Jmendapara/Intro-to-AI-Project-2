@@ -1,5 +1,5 @@
 import numpy as np
-from .MineVisualization import game
+from .MineVisualizationImproved import game
 import random 
 import copy
 
@@ -43,6 +43,8 @@ class ImprovedAgent():
         self.gridSize = env.gridSize
 
         self.movesTaken = set()
+        self.hitMines = set()
+
 
         self.mines = set()
         self.safes = set()
@@ -66,10 +68,10 @@ class ImprovedAgent():
 
         while(gameRunning):
 
-            move = self.openSafeCell()
-            if move is None:
-                move = self.openRandomCell()
-                if move is None:
+            nextCellToOpen = self.openSafeCell()
+            if nextCellToOpen is None:
+                nextCellToOpen = self.openRandomCell()
+                if nextCellToOpen is None:
 
                         flags = self.mines.copy()
                         gameRunning = False
@@ -78,10 +80,14 @@ class ImprovedAgent():
 
                         print("Mines Hit: " + str(self.minesHit))
                         print("Moves Made: " + str(self.movesTaken))
-                        print("Length of Moves Made: " + str(len(self.movesTaken)))
+                        print("Length of Moves Made: " + str(len(self.movesVisualization)))
                         print("Mines Identified: " + str(len(self.mines)))
 
-                        #game(len(self.env.clues), self.env.clues,  self.env.clues, self.movesVisualization)
+                        for cell in self.hitMines:
+                            print(cell)
+
+
+                        game(len(self.env.clues), self.env.clues,  self.hitMines, self.movesVisualization)
 
                         print("No moves left")
 
@@ -91,28 +97,30 @@ class ImprovedAgent():
             else:
                 print("Opening a safe cell.")
 
-            x = move[0]
-            y = move[1]
+            x = nextCellToOpen[0]
+            y = nextCellToOpen[1]
 
-            clue = self.env.open(move[0],move[1])
+            clue = self.env.open(nextCellToOpen[0],nextCellToOpen[1])
 
             self.movesTaken.add((x,y))
+
 
             if(clue == -1):
                 self.minesHit += 1
                 self.markAsMine((x,y))
+                self.hitMines.add((x,y))
 
             else:
-                self.makeEquation(move, clue)
+                self.makeEquation(nextCellToOpen, clue)
 
 
     def openSafeCell(self):
-        for i in self.safes - self.movesTaken:
-            return i
+        for cell in self.safes - self.movesTaken:
+            return cell
         return None
 
     def openRandomCell(self):
-        
+       
         for cell in self.mines:
             if(cell in self.movesAvaliable):
                 self.movesAvaliable.remove(cell)
@@ -128,6 +136,10 @@ class ImprovedAgent():
             return self.movesAvaliable[random.randrange(len(self.movesAvaliable))]
 
     def markAsMine(self, cell):
+
+        if(cell not in self.mines):
+            self.movesVisualization.append(cell)
+
         
         if(cell in self.movesAvaliable):
             self.movesAvaliable.remove(cell)
@@ -137,6 +149,11 @@ class ImprovedAgent():
             sentence.markAsMine(cell)
 
     def markAsSafe(self, cell):
+
+        if(cell not in self.safes):
+            self.movesVisualization.append(cell)
+        
+
         self.safes.add(cell)
         for sentence in self.knowledgeBase:
             sentence.markAsSafe(cell)
@@ -152,9 +169,6 @@ class ImprovedAgent():
     def makeEquation(self, cell, clue):
 
         self.markAsSafe(cell)
-        self.movesVisualization.append(cell)
-        if(cell in self.movesAvaliable):
-            self.movesAvaliable.remove(cell)
 
         neighbors = set()
         clue = copy.deepcopy(clue)
@@ -215,20 +229,20 @@ class ImprovedAgent():
 
     def makeInference(self):
 
-        # iterate through pairs of sentences
         for tempEquation1 in self.knowledgeBase:
             for tempEquation2 in self.knowledgeBase:
-                # check if sentence 1 is subset of sentence 2
+
+                #if one is a subset of the other variables, then we can deduce more information 
                 if tempEquation1.neighbors.issubset(tempEquation2.neighbors):
-                    new_cells = tempEquation2.neighbors - tempEquation1.neighbors
-                    new_count = tempEquation2.clue - tempEquation1.clue
-                    newEquation = ConstraintEquation(new_cells, new_count)
-                    mines = newEquation.getIdentifiedMines()
-                    safes = newEquation.getIdentifiedSafes()
-                    if mines:
-                        for mine in mines:
+                    newNeighbors = tempEquation2.neighbors - tempEquation1.neighbors
+                    newClueValue = tempEquation2.clue - tempEquation1.clue
+                    newEquation = ConstraintEquation(newNeighbors, newClueValue)
+                    tempMines = newEquation.getIdentifiedMines()
+                    tempSafes = newEquation.getIdentifiedSafes()
+                    if tempMines:
+                        for mine in tempMines:
                             self.markAsMine(mine)
 
-                    if safes:
-                        for safe in safes:
+                    if tempSafes:
+                        for safe in tempSafes:
                             self.markAsSafe(safe)

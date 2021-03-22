@@ -7,7 +7,7 @@ from enviornment.enviornment import Enviornment
 
 TRIALS_PER_DENSITY = 20
 BOARD_SIZE = 8
-x = [.1, .2, .3, .4, .5, .6, .7, .8, .9, 1]
+x = [.01, .05, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1]
 
 
 
@@ -65,7 +65,15 @@ for density in x:
 # plt.title('Improved Strategy Accuracy')
 # plt.ylim([0, 1])
 # plt.show()
+print('x values')
+print(x) 
 
+print('simple agent')
+print(simpleAgentValues)
+
+
+print('improved agent')
+print(improvedAgentValues)
 
 # plotting the line 1 points 
 plt.plot(x, simpleAgentValues, label = "Simple Strategy")

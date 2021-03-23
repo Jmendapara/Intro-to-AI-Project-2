@@ -119,6 +119,7 @@ class ImprovedAgent():
             return cell
         return None
 
+    #reutrns a random cell to open that hasnt been opened already
     def openRandomCell(self):
        
         for cell in self.mines:
@@ -135,6 +136,7 @@ class ImprovedAgent():
         else:
             return self.movesAvaliable[random.randrange(len(self.movesAvaliable))]
 
+    #mark the cell as a mine and make the appropriate updates
     def markAsMine(self, cell):
 
         if(cell not in self.mines):
@@ -147,6 +149,8 @@ class ImprovedAgent():
         self.mines.add(cell)
         for sentence in self.knowledgeBase:
             sentence.markAsMine(cell)
+
+    #mark the cell as a safe and make the appropriate updates
 
     def markAsSafe(self, cell):
 
@@ -166,6 +170,7 @@ class ImprovedAgent():
             return False
         return True
 
+    #Makes a constraint equation
     def makeEquation(self, cell, clue):
 
         self.markAsSafe(cell)
@@ -187,6 +192,7 @@ class ImprovedAgent():
         self.updateKnowledgeBase()
         self.makeInference()
 
+    #gets a list of all the unopnened neighboring cells of a cell
     def getNeighborCells(self, cell):
 
         neighborCells = set()
@@ -205,6 +211,7 @@ class ImprovedAgent():
 
         return neighborCells
 
+    #simply checks to see if there are addional safe or mine cells to be marked
     def updateKnowledgeBase(self):
 
         knowledgeBaseCopy = copy.deepcopy(self.knowledgeBase)
@@ -227,6 +234,7 @@ class ImprovedAgent():
                     self.markAsSafe(safe)
                     self.updateKnowledgeBase()
 
+    #checks the relationship between cells to infer more infromation from the knowledgebase
     def makeInference(self):
 
         for tempEquation1 in self.knowledgeBase:
